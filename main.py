@@ -17,7 +17,7 @@ input = QTextEdit()
 input.setText("a = 1 / 3")
 form.addRow(input)
 
-run = QPushButton("Run")
+run = QPushButton("&Run")
 def on_clicked():
     result = subprocess.run(
         ["octave", "-q", "--eval", input.toPlainText()],
@@ -31,8 +31,6 @@ form.addRow(run)
 
 
 window = QWidget()
-shortcut = QShortcut(QKeySequence("Alt+r"), window)
-window.connect(shortcut, SIGNAL('activated()'), on_clicked)
 window.resize(800, 1024)
 window.setWindowTitle("Calculator")
 window.setLayout(form)
