@@ -34,6 +34,8 @@ for file in dir.glob("*.m"):
     scripts_list.addItem(file.name)
 form.addRow(scripts_list)
 
+create_script_button = QPushButton("&Create script")
+form.addRow(create_script_button)
 
 #
 # State operations.
@@ -58,6 +60,13 @@ def set_output(output):
 #
 # Worker functions.
 #
+
+def find_script_index(filename):
+    for i in range(scripts_list.count()):
+        item = scripts_list.item(i)
+        if item.text() == filename:
+            return i
+    return None
 
 def move_to_position(line, col):
     cursor = input.textCursor()
@@ -108,13 +117,45 @@ def load_script(filename):
             script_contents = file.read()
             input.setText(script_contents)
             run_octave(filename)
+            return True
     except Exception as e:
         clear_selection()
         output.setText(str(e))
+        list_index = find_script_index(filename)
+        if not list_index is None:
+            scripts_list.takeItem(list_index)
+        return False
 
 def change_script(old_filename, new_filename):
     save_script(old_filename)
     load_script(new_filename)
+
+def create_script():
+    filename, ok = QInputDialog.getText(None, "Script filename:", "name")
+    if not ok:
+        return
+
+    print("Creating file '" + filename + "'.")
+    for i in range(scripts_list.count()):
+        item = scripts_list.item(i)
+        if item.text() == filename:
+            print("Already have item named '" + item.text() + "'.")
+            scripts_list.setCurrentRow(i)
+            return
+    # Did not have a file with that name already.
+    try:
+        open(filename, 'r')
+        # File exists but wasn't in our list. Add it.
+        scripts_list.addItem(filename)
+        scripts_list.setCurrentRow(scripts_list.count() - 1)
+    except:
+        try:
+            open(filename, 'w')
+            # File did not exist, but we've created it. Add to list.
+            scripts_list.addItem(filename)
+            scripts_list.setCurrentRow(scripts_list.count() - 1)
+        except:
+            print("Could not create file " + filename + "'.")
 
 
 #
@@ -141,9 +182,13 @@ def list_selection_changed(current, previous):
     else:
         change_script(previous.text(), current.text())
 
+def on_create_script():
+    create_script()
+
 
 run.clicked.connect(on_clicked)
 scripts_list.currentItemChanged.connect(list_selection_changed)
+create_script_button.clicked.connect(on_create_script)
 
 
 
