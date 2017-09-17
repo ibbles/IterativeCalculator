@@ -19,22 +19,18 @@ form.addRow(output)
 
 input = QTextEdit()
 form.addRow(input)
-with open("script.m", 'r') as file:
-    input.setText(file.read())
 
 run = QPushButton("&Run")
 
-def run_octave(string):
+current_script_filename = ""
+
+def run_octave(script_filename):
     # Using a temporary file instead of the --eval Octave argument because
     # Octave get line numbering wrong when not reading from a file.
-    with open('script.m', 'w') as file:
-        file.write(string)
-        file.flush()
-        file_name = file.name
-        status = subprocess.run(
-            ["octave", "--no-gui", "-q", file_name],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return status
+    status = subprocess.run(
+        ["octave", "--no-gui", "-q", script_filename],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return status
 
 def move_to_error(error_string):
         line_col = re.match(".*near line (.*) column (.*)", error_string)
@@ -55,8 +51,10 @@ def move_to_error(error_string):
                 pass
 
 def on_clicked():
-    script = input.toPlainText()
-    status = run_octave(script)
+    global current_script_filename
+    filename = current_script_filename
+    save_script(filename)
+    status = run_octave(filename)
     if status.returncode == 0:
         result = status.stdout.decode("utf-8")
         output.setText(result)
@@ -82,8 +80,20 @@ def clear_selection():
 def load_script(filename):
     try:
         with open(filename, 'r') as file:
-            input.setText(file.read())
-            output.setText("") # \todo Call Octave here?
+            global current_script_filename
+            current_script_filename = filename
+            script_contents = file.read()
+            input.setText(script_contents)
+            output.setText("")
+            status = run_octave(filename)
+            if status.returncode == 0:
+                result = status.stdout.decode("utf-8")
+                output.setText(result)
+            else:
+                error = status.stderr.decode("utf-8")
+                output.setText(error)
+                move_to_error(error)
+
     except Exception as e:
         clear_selection()
         output.setText(str(e))
@@ -101,11 +111,9 @@ def list_selection_changed(current, previous):
         change_script(previous.text(), current.text())
 
 scripts_list = QListWidget()
-scripts_list.addItem("script.m")
 dir = Path(".")
 for file in dir.glob("*.m"):
-    if file.name != "script.m":
-        scripts_list.addItem(file.name)
+    scripts_list.addItem(file.name)
 scripts_list.currentItemChanged.connect(list_selection_changed)
 form.addRow(scripts_list)
 
@@ -116,5 +124,7 @@ window.setLayout(form)
 window.show()
 
 input.setFocus()
+
+scripts_list.setCurrentRow(0, QItemSelectionModel.Select)
 
 sys.exit(app.exec_())
