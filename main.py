@@ -2,45 +2,40 @@
 # -*- coding: utf-8 -*-
 #
 import sys
+import subprocess
+
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
-# Create an PyQT4 application object.
 app = QApplication(sys.argv)
-
-# The QWidget widget is the base class of all user interface objects in PyQt4.
-window = QWidget()
-
-# Set window size.
-window.resize(320, 240)
-
-# Set window title
-window.setWindowTitle("Calculator")
-
 form = QFormLayout()
 
-output = QTextEdit(window)
-output.setText("Result will be shown here.")
+output = QTextEdit()
 form.addRow(output)
 
 input = QTextEdit()
-input.setText("Type here.")
+input.setText("a = 1 / 3")
 form.addRow(input)
 
 run = QPushButton("Run")
 def on_clicked():
-    print("Clicked")
-    output.setText("Run!")
+    result = subprocess.run(
+        ["octave", "-q", "--eval", input.toPlainText()],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode == 0:
+        output.setText(result.stdout.decode("utf-8"))
+    else:
+        output.setText(result.stderr.decode("utf-8"))
 run.clicked.connect(on_clicked)
 form.addRow(run)
 
 
-window.connect(QShortcut(QKeySequence("Alt+r"), window), SIGNAL('activated()'), on_clicked)
-
+window = QWidget()
+shortcut = QShortcut(QKeySequence("Alt+r"), window)
+window.connect(shortcut, SIGNAL('activated()'), on_clicked)
+window.resize(800, 1024)
+window.setWindowTitle("Calculator")
 window.setLayout(form)
-
 window.show()
-
-
 
 sys.exit(app.exec_())
