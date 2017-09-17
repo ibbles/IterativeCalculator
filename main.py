@@ -17,13 +17,15 @@ form.addRow(output)
 
 input = QTextEdit()
 form.addRow(input)
+with open("script.m", 'r') as file:
+    input.setText(file.read())
 
 run = QPushButton("&Run")
 
 def run_octave(string):
     # Using a temporary file instead of the --eval Octave argument because
     # Octave get line numbering wrong when not reading from a file.
-    with tempfile.NamedTemporaryFile(mode='w') as file:
+    with open('script.m', 'w') as file:
         file.write(string)
         file.flush()
         file_name = file.name
