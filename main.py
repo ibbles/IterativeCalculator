@@ -38,4 +38,6 @@ window.setWindowTitle("Calculator")
 window.setLayout(form)
 window.show()
 
+input.setFocus()
+
 sys.exit(app.exec_())
