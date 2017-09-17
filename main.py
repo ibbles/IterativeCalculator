@@ -6,6 +6,8 @@ import sys
 import subprocess
 import tempfile
 
+from pathlib import Path
+
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
@@ -65,6 +67,47 @@ def on_clicked():
 
 run.clicked.connect(on_clicked)
 form.addRow(run)
+
+
+def save_script(filename):
+    with open(filename, 'w') as file:
+        file.write(input.toPlainText())
+
+
+def clear_selection():
+    output.setText("")
+    input.setText("")
+    scripts_list.setCurrentRow(-1, QItemSelectionModel.Deselect)
+
+def load_script(filename):
+    try:
+        with open(filename, 'r') as file:
+            input.setText(file.read())
+            output.setText("") # \todo Call Octave here?
+    except Exception as e:
+        clear_selection()
+        output.setText(str(e))
+
+def change_script(old_filename, new_filename):
+    save_script(old_filename)
+    load_script(new_filename)
+
+def list_selection_changed(current, previous):
+    if current is None:
+        clear_selection()
+    elif previous is None:
+        load_script(current.text())
+    else:
+        change_script(previous.text(), current.text())
+
+scripts_list = QListWidget()
+scripts_list.addItem("script.m")
+dir = Path(".")
+for file in dir.glob("*.m"):
+    if file.name != "script.m":
+        scripts_list.addItem(file.name)
+scripts_list.currentItemChanged.connect(list_selection_changed)
+form.addRow(scripts_list)
 
 window = QWidget()
 window.resize(800, 1024)
