@@ -34,6 +34,10 @@ scripts_list = QListWidget()
 dir = Path(".")
 for file in dir.glob("*.m"):
     scripts_list.addItem(file.name)
+if scripts_list.count() == 0:
+    scripts_list.addItem("default.m")
+    with open("default.m", 'w'):
+        pass
 form.addRow(scripts_list)
 
 create_script_button = QPushButton("&Create script")
