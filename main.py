@@ -1,8 +1,10 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
+import os
 import re
 import sys
+import shutil
 import subprocess
 import tempfile
 
@@ -36,6 +38,11 @@ form.addRow(scripts_list)
 
 create_script_button = QPushButton("&Create script")
 form.addRow(create_script_button)
+
+reload_timer = QTimer(app)
+reload_timer.setInterval(1000)
+reload_timer.setSingleShot(True)
+
 
 #
 # State operations.
@@ -100,6 +107,16 @@ def run_octave(filename):
         error = status.stderr.decode("utf-8")
         output.setText(error)
         move_to_error(error)
+
+def try_run_octave(filename):
+    status = subprocess.run(
+        ["octave", "--no-gui", "-q", filename], stdout=subprocess.PIPE)
+    if status.returncode == 0:
+        result = status.stdout.decode("utf-8")
+        output.setText(result)
+        return True
+    else:
+        return False
 
 def save_script(filename):
     with open(filename, 'w') as file:
@@ -185,15 +202,35 @@ def list_selection_changed(current, previous):
 def on_create_script():
     create_script()
 
+def on_text_changed():
+    reload_timer.start()
+
+def on_timer_exipred():
+    filename = get_filename()
+    if filename is None:
+        return
+
+    tmp_filename = ".tmp." + filename
+    save_script(tmp_filename)
+    if try_run_octave(tmp_filename):
+        shutil.move(tmp_filename, filename)
+    else:
+        os.remove(tmp_filename)
+
+def on_quit():
+    filename = get_filename()
+    if not filename is None:
+        save_script(filename)
 
 run.clicked.connect(on_clicked)
 scripts_list.currentItemChanged.connect(list_selection_changed)
 create_script_button.clicked.connect(on_create_script)
-
-
+input.textChanged.connect(on_text_changed)
+reload_timer.timeout.connect(on_timer_exipred)
+app.aboutToQuit.connect(on_quit)
 
 window = QWidget()
-window.resize(800, 1024)
+window.resize(800, 730)
 window.setWindowTitle("Calculator")
 window.setLayout(form)
 window.show()
