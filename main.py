@@ -6,7 +6,6 @@ import re
 import sys
 import shutil
 import subprocess
-import tempfile
 
 from pathlib import Path
 
@@ -31,11 +30,14 @@ run = QPushButton("&Run")
 form.addRow(run)
 
 scripts_list = QListWidget()
+def strip_suffix(filename):
+    assert filename.endswith(".m")
+    return filename[:-len(".m")]
 dir = Path(".")
 for file in dir.glob("*.m"):
-    scripts_list.addItem(file.name)
+    scripts_list.addItem(strip_suffix(file.name))
 if scripts_list.count() == 0:
-    scripts_list.addItem("default.m")
+    scripts_list.addItem("default")
     with open("default.m", 'w'):
         pass
 form.addRow(scripts_list)
@@ -52,7 +54,7 @@ reload_timer.setSingleShot(True)
 # State operations.
 #
 
-def get_filename():
+def get_scriptname():
     try:
         return scripts_list.currentItem().text()
     except:
@@ -72,10 +74,10 @@ def set_output(output):
 # Worker functions.
 #
 
-def find_script_index(filename):
+def find_script_index(scriptname):
     for i in range(scripts_list.count()):
         item = scripts_list.item(i)
-        if item.text() == filename:
+        if item.text() == scriptname:
             return i
     return None
 
@@ -100,9 +102,9 @@ def move_to_error(error_string):
             # helpfully place the cursor where the error is.
             pass
 
-def run_octave(filename):
+def run_octave(scriptname):
     status = subprocess.run(
-        ["octave", "--no-gui", "-q", filename],
+        ["octave", "--no-gui", "-q", scriptname+".m"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if status.returncode == 0:
         result = status.stdout.decode("utf-8")
@@ -112,9 +114,9 @@ def run_octave(filename):
         output.setText(error)
         move_to_error(error)
 
-def try_run_octave(filename):
+def try_run_octave(scriptname):
     status = subprocess.run(
-        ["octave", "--no-gui", "-q", filename], stdout=subprocess.PIPE)
+        ["octave", "--no-gui", "-q", scriptname+".m"], stdout=subprocess.PIPE)
     if status.returncode == 0:
         result = status.stdout.decode("utf-8")
         output.setText(result)
@@ -122,8 +124,8 @@ def try_run_octave(filename):
     else:
         return False
 
-def save_script(filename):
-    with open(filename, 'w') as file:
+def save_script(scriptname):
+    with open(scriptname+".m", 'w') as file:
         file.write(input.toPlainText())
 
 
@@ -132,51 +134,50 @@ def clear_selection():
     input.setText("")
     scripts_list.setCurrentRow(-1, QItemSelectionModel.Deselect)
 
-def load_script(filename):
+def load_script(scriptname):
     try:
-        with open(filename, 'r') as file:
+        with open(scriptname+".m", 'r') as file:
             script_contents = file.read()
             input.setText(script_contents)
-            run_octave(filename)
+            run_octave(scriptname)
             return True
     except Exception as e:
         clear_selection()
         output.setText(str(e))
-        list_index = find_script_index(filename)
+        list_index = find_script_index(scriptname)
         if not list_index is None:
             scripts_list.takeItem(list_index)
         return False
 
-def change_script(old_filename, new_filename):
-    save_script(old_filename)
-    load_script(new_filename)
+def change_script(old_scriptname, new_scriptname):
+    save_script(old_scriptname)
+    load_script(new_scriptname)
 
 def create_script():
-    filename, ok = QInputDialog.getText(None, "Script filename:", "name")
+    scriptname, ok = QInputDialog.getText(None, "Script name:", "name")
     if not ok:
         return
 
-    print("Creating file '" + filename + "'.")
     for i in range(scripts_list.count()):
         item = scripts_list.item(i)
-        if item.text() == filename:
-            print("Already have item named '" + item.text() + "'.")
+        if item.text() == scriptname:
             scripts_list.setCurrentRow(i)
             return
+
     # Did not have a file with that name already.
     try:
-        open(filename, 'r')
+        open(scriptname+".m", 'r')
         # File exists but wasn't in our list. Add it.
-        scripts_list.addItem(filename)
+        scripts_list.addItem(scriptname)
         scripts_list.setCurrentRow(scripts_list.count() - 1)
     except:
         try:
-            open(filename, 'w')
+            open(scriptname+".m", 'w')
             # File did not exist, but we've created it. Add to list.
-            scripts_list.addItem(filename)
+            scripts_list.addItem(scriptname)
             scripts_list.setCurrentRow(scripts_list.count() - 1)
         except:
-            print("Could not create file " + filename + "'.")
+            output.setText("Could not create file " + scriptname+".m" + "'.")
 
 
 #
@@ -184,13 +185,13 @@ def create_script():
 #
 
 def on_clicked():
-    filename = get_filename()
-    if filename is None:
+    scriptname = get_scriptname()
+    if scriptname is None:
         output.setText("No script file selected.")
         return
 
-    save_script(filename)
-    run_octave(filename)
+    save_script(scriptname)
+    run_octave(scriptname)
 
 
 
@@ -210,16 +211,16 @@ def on_text_changed():
     reload_timer.start()
 
 def on_timer_exipred():
-    filename = get_filename()
-    if filename is None:
+    scriptname = get_scriptname()
+    if scriptname is None:
         return
-    save_script(filename)
-    try_run_octave(filename)
+    save_script(scriptname)
+    try_run_octave(scriptname)
 
 def on_quit():
-    filename = get_filename()
-    if not filename is None:
-        save_script(filename)
+    scriptname = get_scriptname()
+    if not scriptname is None:
+        save_script(scriptname)
 
 run.clicked.connect(on_clicked)
 scripts_list.currentItemChanged.connect(list_selection_changed)
