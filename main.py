@@ -1,6 +1,15 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
+
+
+# InteractiveCalculator is an Octave script editor that displays the Octave
+# output as the user types. The intended use case is for quick throw-away
+# exploratory computations where the problem isn't well enough understood for
+# the Octave shell and creating files and re-running Octave by hand several
+# times is too much overhead.
+
+
 import os
 import re
 import sys
@@ -31,14 +40,6 @@ run = QPushButton("&Run")
 form.addRow(run)
 
 scripts_list = QListWidget()
-dir = Path(".")
-for file in dir.glob("*.m"):
-    scriptname = file.name[:-len(".m")]
-    scripts_list.addItem(scriptname)
-if scripts_list.count() == 0:
-    scripts_list.addItem("default")
-    with open("default.m", 'w'):
-        pass
 form.addRow(scripts_list)
 
 create_script_button = QPushButton("&Create script")
@@ -47,6 +48,17 @@ form.addRow(create_script_button)
 reload_timer = QTimer(app)
 reload_timer.setInterval(1000)
 reload_timer.setSingleShot(True)
+
+# Load scripts that already exists.
+# Create a default script if none existed.
+dir = Path(".")
+for file in dir.glob("*.m"):
+    scriptname = file.name[:-len(".m")]
+    scripts_list.addItem(scriptname)
+if scripts_list.count() == 0:
+    scripts_list.addItem("default")
+    with open("default.m", 'w'):
+        pass
 
 
 #
@@ -59,11 +71,14 @@ def get_scriptname():
     except:
         return None
 
+
 def get_input():
     return input.toPlainText()
 
+
 def set_input(input):
     input.setText(input)
+
 
 def set_output(output):
     output.setText(output)
@@ -80,12 +95,14 @@ def find_script_index(scriptname):
             return i
     return None
 
+
 def move_to_position(line, col):
     cursor = input.textCursor()
     cursor.setPosition(0)
-    cursor.movePosition(QTextCursor.Down, n = line)
-    cursor.movePosition(QTextCursor.Right, n = col)
+    cursor.movePosition(QTextCursor.Down, n=line)
+    cursor.movePosition(QTextCursor.Right, n=col)
     input.setTextCursor(cursor)
+
 
 def move_to_error(error_string):
     line_col = re.match(".*near line (.*) column (.*)", error_string)
@@ -101,6 +118,7 @@ def move_to_error(error_string):
             # helpfully place the cursor where the error is.
             pass
 
+
 def run_octave(scriptname):
     status = subprocess.run(
         ["octave", "--no-gui", "-q", scriptname+".m"],
@@ -113,6 +131,7 @@ def run_octave(scriptname):
         output.setText(error)
         move_to_error(error)
 
+
 def try_run_octave(scriptname):
     status = subprocess.run(
         ["octave", "--no-gui", "-q", scriptname+".m"], stdout=subprocess.PIPE)
@@ -123,6 +142,7 @@ def try_run_octave(scriptname):
     else:
         return False
 
+
 def save_script(scriptname):
     with open(scriptname+".m", 'w') as file:
         file.write(input.toPlainText())
@@ -132,6 +152,7 @@ def clear_selection():
     output.setText("")
     input.setText("")
     scripts_list.setCurrentRow(-1, QItemSelectionModel.Deselect)
+
 
 def load_script(scriptname):
     try:
@@ -144,13 +165,15 @@ def load_script(scriptname):
         clear_selection()
         output.setText(str(e))
         list_index = find_script_index(scriptname)
-        if not list_index is None:
+        if list_index is not None:
             scripts_list.takeItem(list_index)
         return False
+
 
 def change_script(old_scriptname, new_scriptname):
     save_script(old_scriptname)
     load_script(new_scriptname)
+
 
 def create_script():
     scriptname, ok = QInputDialog.getText(None, "Script name:", "name")
@@ -160,19 +183,22 @@ def create_script():
     for i in range(scripts_list.count()):
         item = scripts_list.item(i)
         if item.text() == scriptname:
+            # The script already exists. Select it.
             scripts_list.setCurrentRow(i)
             return
 
-    # Did not have a file with that name already.
+    # Did not have a script with that name already.
     try:
-        open(scriptname+".m", 'r')
+        with open(scriptname+".m", 'r'):
+            pass
         # File exists but wasn't in our list. Add it.
         scripts_list.addItem(scriptname)
         scripts_list.setCurrentRow(scripts_list.count() - 1)
     except:
         try:
-            open(scriptname+".m", 'w')
-            # File did not exist, but we've created it. Add to list.
+            with open(scriptname+".m", 'w'):
+                pass
+            # File did not exist, but we have created it. Add to list.
             scripts_list.addItem(scriptname)
             scripts_list.setCurrentRow(scripts_list.count() - 1)
         except:
@@ -183,16 +209,13 @@ def create_script():
 # GUI widget callbacks.
 #
 
-def on_clicked():
+def on_run_clicked():
     scriptname = get_scriptname()
     if scriptname is None:
         output.setText("No script file selected.")
         return
-
     save_script(scriptname)
     run_octave(scriptname)
-
-
 
 
 def list_selection_changed(current, previous):
@@ -203,30 +226,40 @@ def list_selection_changed(current, previous):
     else:
         change_script(previous.text(), current.text())
 
+
 def on_create_script():
     create_script()
+
 
 def on_text_changed():
     reload_timer.start()
 
-def on_timer_exipred():
+
+def on_timer_expired():
     scriptname = get_scriptname()
     if scriptname is None:
         return
     save_script(scriptname)
     try_run_octave(scriptname)
 
+
 def on_quit():
     scriptname = get_scriptname()
-    if not scriptname is None:
+    if scriptname is not None:
         save_script(scriptname)
 
-run.clicked.connect(on_clicked)
+
+run.clicked.connect(on_run_clicked)
 scripts_list.currentItemChanged.connect(list_selection_changed)
 create_script_button.clicked.connect(on_create_script)
 input.textChanged.connect(on_text_changed)
-reload_timer.timeout.connect(on_timer_exipred)
+reload_timer.timeout.connect(on_timer_expired)
 app.aboutToQuit.connect(on_quit)
+
+
+#
+# Application finalization.
+#
 
 window = QWidget()
 window.resize(800, 730)
@@ -234,8 +267,8 @@ window.setWindowTitle("Calculator")
 window.setLayout(form)
 window.show()
 
-input.setFocus()
-
 scripts_list.setCurrentRow(0, QItemSelectionModel.Select)
+
+input.setFocus()
 
 sys.exit(app.exec_())
