@@ -21,6 +21,7 @@ form = QFormLayout()
 #
 
 output = QTextEdit()
+output.setReadOnly(True)
 form.addRow(output)
 
 input = QTextEdit()
