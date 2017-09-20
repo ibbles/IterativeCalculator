@@ -31,12 +31,10 @@ run = QPushButton("&Run")
 form.addRow(run)
 
 scripts_list = QListWidget()
-def strip_suffix(filename):
-    assert filename.endswith(".m")
-    return filename[:-len(".m")]
 dir = Path(".")
 for file in dir.glob("*.m"):
-    scripts_list.addItem(strip_suffix(file.name))
+    scriptname = file.name[:-len(".m")]
+    scripts_list.addItem(scriptname)
 if scripts_list.count() == 0:
     scripts_list.addItem("default")
     with open("default.m", 'w'):
