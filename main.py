@@ -213,13 +213,8 @@ def on_timer_exipred():
     filename = get_filename()
     if filename is None:
         return
-
-    tmp_filename = ".tmp." + filename
-    save_script(tmp_filename)
-    if try_run_octave(tmp_filename):
-        shutil.move(tmp_filename, filename)
-    else:
-        os.remove(tmp_filename)
+    save_script(filename)
+    try_run_octave(filename)
 
 def on_quit():
     filename = get_filename()
