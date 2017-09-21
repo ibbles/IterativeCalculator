@@ -21,6 +21,14 @@ from pathlib import Path
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
+# The subprocess library what change in Python 3.5 to include 'run'
+# which is preferred over call.
+try:
+    subprocess.run
+    have_run = True
+except AttributeError:
+    have_run = False
+
 app = QApplication(sys.argv)
 form = QFormLayout()
 
@@ -120,27 +128,50 @@ def move_to_error(error_string):
 
 
 def run_octave(scriptname):
-    status = subprocess.run(
-        ["octave", "--no-gui", "-q", scriptname+".m"],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if status.returncode == 0:
-        result = status.stdout.decode("utf-8")
-        output.setText(result)
+    if have_run:
+        status = subprocess.run(
+            ["octave", "--no-gui", "-q", scriptname+".m"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if status.returncode == 0:
+            result = status.stdout.decode("utf-8")
+            output.setText(result)
+        else:
+            error = status.stderr.decode("utf-8")
+            output.setText(error)
+            move_to_error(error)
     else:
-        error = status.stderr.decode("utf-8")
-        output.setText(error)
-        move_to_error(error)
-
+        process = subprocess.Popen(
+            ["octave", "--no-gui", "-q", scriptname+".m"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = process.communicate()
+        if process.returncode == 0:
+            result = out.decode("utf-8")
+            output.setText(result)
+        else:
+            error = err.decode("utf-8")
+            output.setText(error)
+            move_to_error(error)
 
 def try_run_octave(scriptname):
-    status = subprocess.run(
-        ["octave", "--no-gui", "-q", scriptname+".m"], stdout=subprocess.PIPE)
-    if status.returncode == 0:
-        result = status.stdout.decode("utf-8")
-        output.setText(result)
-        return True
+    if have_run:
+        status = subprocess.run(
+            ["octave", "--no-gui", "-q", scriptname+".m"], stdout=subprocess.PIPE)
+        if status.returncode == 0:
+            result = status.stdout.decode("utf-8")
+            output.setText(result)
+            return True
+        else:
+            return False
     else:
-        return False
+        process = subprocess.Popen(
+            ["octave", "--no-gui", "-q", scriptname+".m"], stdout=subprocess.PIPE)
+        out, err = process.communicate()
+        if process.returncode == 0:
+            result = out.decode("utf-8")
+            output.setText(result)
+            return True
+        else:
+            return False
 
 
 def save_script(scriptname):
